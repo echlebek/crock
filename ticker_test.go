@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-func TestTicker(t *testing.T) {
+func TestCrockTicker(t *testing.T) {
 	tm := NewTime(testTime)
 	tm.Resolution = time.Millisecond
 	ticker := tm.NewTicker(time.Millisecond)
 	defer ticker.Stop()
-	ch := ticker.C()
+	ch := ticker.C
 	time.Sleep(time.Millisecond * 2)
 	select {
 	case <-ch:

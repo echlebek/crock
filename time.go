@@ -149,5 +149,5 @@ func (t *Time) After(d time.Duration) <-chan time.Time {
 // Tick works like time.Tick, except it only ticks if crock time progresses
 // enough.
 func (t *Time) Tick(d time.Duration) <-chan time.Time {
-	return t.NewTicker(d).C()
+	return t.NewTicker(d).C
 }
