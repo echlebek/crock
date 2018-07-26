@@ -4,32 +4,38 @@ import (
 	"runtime"
 	"sync/atomic"
 	"time"
+
+	timeproxy "github.com/echlebek/timeproxy"
 )
 
-// NewTicker creates a new time.Ticker. It works like time.NewTicker, except
-// that is only ticks when time is progressing. Because the ticker's channel
-// is co-opted by crock, the Stop() method has no effect. However, ticks will
-// stop being generated when the object becomes unreachable.
-func (t *Time) NewTicker(d time.Duration) *time.Ticker {
-	crockTicker := newTicker(t, d)
-	// start guarantees that crockTicker will be reachable until stop is called
-	crockTicker.start()
-	ticker := &time.Ticker{C: crockTicker.ch}
+// NewTicker creates a new crock ticker. It works like time.Ticker, except that
+// it only ticks when time is progressing.
+func (t *Time) NewTicker(d time.Duration) *timeproxy.Ticker {
+	ticker := newTicker(t, d)
+	// start guarantees that ticker will be reachable until stop is called
+	ticker.start()
 	// Make sure we don't keep creating tick events after the ticker has gone
 	// out of scope.
-	runtime.SetFinalizer(ticker, func(interface{}) { crockTicker.stop() })
-	return ticker
-}
-
-func newTicker(t *Time, d time.Duration) *crockTicker {
-	return &crockTicker{
-		time:     t,
-		duration: d,
-		ch:       make(chan time.Time, 1),
+	stopper := ticker.Stop
+	finalizer := func(interface{}) {
+		stopper()
+	}
+	runtime.SetFinalizer(ticker, finalizer)
+	return &timeproxy.Ticker{
+		C:        ticker.C,
+		StopFunc: ticker.Stop,
 	}
 }
 
-func (t *crockTicker) start() {
+func newTicker(t *Time, d time.Duration) *ticker {
+	return &ticker{
+		time:     t,
+		duration: d,
+		C:        make(chan time.Time, 1),
+	}
+}
+
+func (t *ticker) start() {
 	t.running = 1
 	now := t.time.Now()
 	f := new(func())
@@ -40,19 +46,20 @@ func (t *crockTicker) start() {
 		if atomic.LoadInt64(&t.running) == 1 {
 			t.time.event(now.Add(t.duration), *f)
 		}
-		t.ch <- now
+		t.C <- now
 	}
 	t.time.event(now.Add(t.duration), *f)
 }
 
-func (t *crockTicker) stop() {
+// Ticker stops the ticker. No new events will be sent on ticker.C.
+func (t *ticker) Stop() {
 	atomic.StoreInt64(&t.running, 0)
 }
 
-// crockTicker is like time.Ticker, but will tick only when time is progressing
-type crockTicker struct {
+// Ticker is like time.Ticker, but will tick only when time is progressing
+type ticker struct {
 	running  int64
 	time     *Time
 	duration time.Duration
-	ch       chan time.Time
+	C        chan time.Time
 }

@@ -21,8 +21,9 @@ func TestCrockTicker(t *testing.T) {
 	defer tm.Stop()
 	for i := 0; i < 10; i++ {
 		tickTime := <-ch
-		if got, want := tickTime, testTime.Add(time.Millisecond*time.Duration(i+1)); !got.Equal(want) {
-			t.Errorf("bad tick time: got %v, want %v", got, want)
+		got, want := tickTime.UnixNano(), testTime.Add(time.Millisecond*time.Duration(i+1)).UnixNano()
+		if got > want {
+			t.Errorf("bad tick time: got %v > want %v", got, want)
 		}
 	}
 }

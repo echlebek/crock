@@ -14,6 +14,10 @@ const (
 	DefaultMultiplier = 1.0
 )
 
+var (
+	funcIDCounter uint64
+)
+
 // Time is a crock implementation of time. New Times are halted by default -
 // they do not advance. Time proceeds according to the resolution and
 // multiplier settings. By default, the Resolution is DefaultResolution
@@ -25,7 +29,7 @@ type Time struct {
 	now     time.Time
 	mu      sync.Mutex
 	done    chan struct{}
-	events  map[int64][]func()
+	events  map[int64][]idFunc
 
 	// Resolution is the frequency events will be processed at once crock time
 	// is started.
@@ -43,7 +47,7 @@ func NewTime(now time.Time) *Time {
 		now:        now,
 		Resolution: DefaultResolution,
 		Multiplier: DefaultMultiplier,
-		events:     make(map[int64][]func()),
+		events:     make(map[int64][]idFunc),
 	}
 }
 
@@ -110,11 +114,43 @@ func (t *Time) duration(d time.Duration) time.Duration {
 	return time.Duration(float64(d) / t.Multiplier)
 }
 
+type idFunc struct {
+	id uint64
+	f  func()
+}
+
+func (f idFunc) Call() {
+	f.f()
+}
+
 // event registers an event to be executed at a time.
-func (t *Time) event(at time.Time, do func()) {
+func (t *Time) event(at time.Time, do func()) uint64 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.events[at.UnixNano()] = append(t.events[at.UnixNano()], do)
+
+	fn := idFunc{
+		id: atomic.AddUint64(&funcIDCounter, 1),
+		f:  do,
+	}
+	t.events[at.UnixNano()] = append(t.events[at.UnixNano()], fn)
+
+	return fn.id
+}
+
+func (t *Time) cancelEvent(at time.Time, id uint64) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	events := t.events[at.UnixNano()]
+	newEvents := []idFunc{}
+	for _, e := range events {
+		if e.id == id {
+			continue
+		}
+		newEvents = append(newEvents, e)
+	}
+	t.events[at.UnixNano()] = newEvents
+
+	return len(newEvents) < len(events)
 }
 
 // processEvents loops over all of the events that are registered,
@@ -125,11 +161,11 @@ func (t *Time) processEvents() {
 	defer t.mu.Unlock()
 	for nano, funcs := range t.events {
 		if nano <= now {
-			for _, fn := range funcs {
-				go fn()
+			for i, fn := range funcs {
+				t.events[nano] = append(t.events[nano][:i], t.events[nano][i+1:]...)
+				go fn.Call()
 			}
 		}
-		delete(t.events, nano)
 	}
 }
 
