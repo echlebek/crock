@@ -187,3 +187,13 @@ func (t *Time) After(d time.Duration) <-chan time.Time {
 func (t *Time) Tick(d time.Duration) <-chan time.Time {
 	return t.NewTicker(d).C
 }
+
+// Since works like time.Since, performing t.Now().Sub(s)
+func (t *Time) Since(s time.Time) time.Duration {
+	return t.Now().Sub(s)
+}
+
+// Until works like time.Until, performing s.Sub(t.Now())
+func (t *Time) Until(s time.Time) time.Duration {
+	return s.Sub(t.Now())
+}
