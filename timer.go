@@ -43,13 +43,13 @@ func newTimer(t *Time, d time.Duration) *timer {
 		C:        make(chan time.Time, 1),
 		duration: d,
 		fireAt:   at,
+		running:  1,
 	}
 	timer.eventFunc = func() {
 		timer.C <- t.Now()
 		atomic.StoreInt64(&timer.running, 0)
 	}
 	timer.eventFuncID = t.event(at, timer.eventFunc)
-	timer.running = 1
 	return timer
 }
 
