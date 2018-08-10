@@ -1,7 +1,6 @@
 package crock
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -67,7 +66,6 @@ func TestTimeAfterFunc(t *testing.T) {
 	tm := NewTime(testTime)
 
 	tm.AfterFunc(time.Minute, func() {
-		fmt.Println("AfterFunc")
 		called = true
 		wg.Done()
 	})

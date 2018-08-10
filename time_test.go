@@ -17,7 +17,7 @@ func init() {
 
 func TestNewTime(t *testing.T) {
 	tm := NewTime(testTime)
-	if got, want := tm.now, testTime; !got.Equal(want) {
+	if got, want := tm.Now(), testTime; !got.Equal(want) {
 		t.Errorf("bad init time: got %v, want %v", got, want)
 	}
 	if got, want := tm.Resolution, DefaultResolution; got != want {
