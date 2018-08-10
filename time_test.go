@@ -77,3 +77,11 @@ func TestTimeAfter(t *testing.T) {
 	// Times out if it's broken :P
 	<-ch
 }
+
+func TestTimeAfterTimeNotFlowing(t *testing.T) {
+	tm := NewTime(testTime)
+	tm.Set(tm.Now().Add(time.Hour))
+	ch := tm.After(-time.Minute)
+	// Times out if it's broken :P
+	<-ch
+}
