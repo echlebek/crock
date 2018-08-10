@@ -99,7 +99,7 @@ func (t *Time) loop(done chan struct{}) {
 		select {
 		case <-ticker.C:
 			t.Set(t.Now().Add(time.Duration(float64(t.Resolution) * t.Multiplier)))
-			go t.processEvents()
+			t.processEvents()
 		case <-done:
 			return
 		}
@@ -177,6 +177,7 @@ func (t *Time) After(d time.Duration) <-chan time.Time {
 	then := now.Add(d)
 
 	t.event(then, func() { ch <- then; close(ch) })
+	t.processEvents()
 
 	return ch
 }
